@@ -1,11 +1,13 @@
 {
-  "version": "2026-07-04-v3",
+  "version": "2026-07-04-v5",
   "source": "우리말샘 전체 내려받기 2026-07-04",
   "wordCount": 550880,
   "definitionWordCount": 550880,
   "definitionShardCount": 64,
   "definitionHash": "hash31-v1",
-  "openingRule": "우리말샘 명사 + 실제 다음 합법 단어 100개 이상",
+  "openingRule": "명사 시작 후보 + 연결성 평가 Worker, 순수 용언 제외",
   "openingWordCount": 409145,
-  "verbPriority": "AI는 비동사 후보를 우선하고 동사는 최후순위"
+  "predicateWordCount": 90310,
+  "predicatePriority": "클래식/장문 AI 모두 비용언 우선, 순수 용언은 최후순위",
+  "classicAiEngine": "Web Worker iterative deepening v2 (leaf evaluation sign fixed)"
 }
