@@ -1,8 +1,11 @@
 {
-  "version": "2026-07-04-v2",
+  "version": "2026-07-04-v3",
   "source": "우리말샘 전체 내려받기 2026-07-04",
   "wordCount": 550880,
   "definitionWordCount": 550880,
   "definitionShardCount": 64,
-  "definitionHash": "hash31-v1"
+  "definitionHash": "hash31-v1",
+  "openingRule": "우리말샘 명사 + 실제 다음 합법 단어 100개 이상",
+  "openingWordCount": 409145,
+  "verbPriority": "AI는 비동사 후보를 우선하고 동사는 최후순위"
 }
