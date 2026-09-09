@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>한국어 끝말잇기 v1.0</title>
+  <title>한국어 끝말잇기 v2.0</title>
   <meta name="color-scheme" content="dark light" />
   <style>
     :root {
@@ -120,6 +120,7 @@
     .word-display { margin: 46px auto 26px; text-align: center; }
     .word-display .label { color: var(--muted); font-size: 14px; }
     .word-display .word { font-size: clamp(44px, 8vw, 88px); font-weight: 950; letter-spacing: -4px; margin: 9px 0; word-break: keep-all; }
+    .word-display .word.long-mode-fit { white-space: nowrap; max-width: 100%; overflow: visible; }
     .required { display: inline-flex; gap: 8px; align-items: center; border-radius: 13px; padding: 10px 15px; background: rgba(255,255,255,.06); color: #dce8fa; }
     .input-box { max-width: 700px; margin: 32px auto 0; display: grid; grid-template-columns: 1fr auto auto; gap: 10px; }
     .input-box input { font-size: 21px; text-align: center; font-weight: 800; }
@@ -824,7 +825,19 @@ function nonKillerMoves(required,used) { const m=legalMoves(required,used); if(!
 function randomChoice(a) { return a[Math.floor(Math.random()*a.length)]; }
 function randomSample(a,n) { if(a.length<=n)return a.slice(); const c=a.slice(); for(let i=0;i<n;i++){ const j=i+Math.floor(Math.random()*(c.length-i)); [c[i],c[j]]=[c[j],c[i]]; } return c.slice(0,n); }
 function exampleMove(required,used,nonkiller=false) { let m=legalMoves(required,used); if(nonkiller&&m.length){ const c=replyCountsForCandidates(m,used); m=m.filter(w=>(c.get(w)||0)>0); } return m.length?randomChoice(m):null; }
-async function randomOpeningWord() { for(let a=0;a<250;a++){ const w=randomChoice(state.words); if(nonKillerMoves(w.slice(-1),new Set([w])).length)return w; if(a%15===0)await yieldUI(); } for(const w of state.words)if(nonKillerMoves(w.slice(-1),new Set([w])).length)return w; throw new Error("적절한 시작 단어를 찾지 못했습니다."); }
+let openingVerbSet=new Set();
+function isOpeningWordCandidate(word){
+  const w=normalizeWord(word);
+  if(!w)return false;
+  // 우리말샘 원본의 품사(pos)에서 동사·보조 동사로 확인된 표제어를 시작 단어에서 제외합니다.
+  // 보조 파일을 불러오지 못한 경우에만 안전장치로 사전형 ~다를 제외합니다.
+  return openingVerbSet.size?!openingVerbSet.has(w):!w.endsWith("다");
+}
+function randomOpeningPreviewWord(){
+  for(let i=0;i<30;i++){const w=randomChoice(state.words);if(isOpeningWordCandidate(w))return w;}
+  return state.words.find(isOpeningWordCandidate)||"...";
+}
+async function randomOpeningWord() { for(let a=0;a<320;a++){ const w=randomChoice(state.words); if(isOpeningWordCandidate(w)&&nonKillerMoves(w.slice(-1),new Set([w])).length)return w; if(a%15===0)await yieldUI(); } for(const w of state.words)if(isOpeningWordCandidate(w)&&nonKillerMoves(w.slice(-1),new Set([w])).length)return w; throw new Error("적절한 시작 단어를 찾지 못했습니다."); }
 
 async function chooseAiMove(required,usedWords,moveCount,difficulty,budgetSeconds) {
   const level=["easy","normal","hard","expert"].includes(difficulty)?difficulty:"normal",used=new Set(usedWords); let candidates=legalMoves(required,used).filter(w=>!isExcludedKillerCandidate(w,used)); if(!candidates.length)return null;
@@ -892,7 +905,7 @@ function startWordDraw(runId){
       return;
     }
     reel.className="word-reel-value";void reel.offsetWidth;reel.className="word-reel-value rolling";
-    reel.textContent=randomChoice(state.words);
+    reel.textContent=randomOpeningPreviewWord();
     const delay=step<15?55:70+(step-15)*22;step++;queueStartSequence(tick,delay);
   };
   tick();
@@ -1502,10 +1515,12 @@ async function loadCommonDbFiles(){
   const meta=await fetchJson(`${COMMON_DB_BASE}/version.json?ts=${Date.now()}`,{cache:"no-store"});
   commonDbMeta={...commonDbMeta,...meta};commonDbVersion=String(meta.version||"v2");
   $("loadingText").textContent="게임 단어 목록을 불러오고 있습니다.";
-  const [wordText,patch]=await Promise.all([
+  const [wordText,patch,openingVerbText]=await Promise.all([
     fetchText(`${COMMON_DB_BASE}/words.txt?v=${encodeURIComponent(commonDbVersion)}`),
-    fetchJson(`${COMMON_DB_BASE}/patch.json?v=${encodeURIComponent(commonDbVersion)}`).catch(()=>({add:{},remove:[],definitions:{}}))
+    fetchJson(`${COMMON_DB_BASE}/patch.json?v=${encodeURIComponent(commonDbVersion)}`).catch(()=>({add:{},remove:[],definitions:{}})),
+    fetchText(`${COMMON_DB_BASE}/opening_exclude_verbs.txt?v=${encodeURIComponent(commonDbVersion)}`).catch(()=>"")
   ]);
+  openingVerbSet=new Set(openingVerbText.split(/\r?\n/).map(normalizeWord).filter(Boolean));
   commonDbPatch={add:{},remove:[],definitions:{},...(patch||{})};
   const removeSet=new Set((commonDbPatch.remove||[]).map(normalizeWord).filter(Boolean));
   const finalWords=wordText.split(/\r?\n/).map(normalizeWord).filter(w=>w&&!removeSet.has(w));
@@ -1535,6 +1550,35 @@ async function updateCurrentWordDefinition(rawWord){
 }
 function setupDefinitionObserver(){
   const el=$("currentWordText");if(!el)return;let timer=null;const queue=()=>{clearTimeout(timer);timer=setTimeout(()=>updateCurrentWordDefinition(el.textContent),180);};new MutationObserver(queue).observe(el,{childList:true,subtree:true,characterData:true});queue();
+}
+
+let currentWordFitRaf=0;
+function fitCurrentWordDisplay(){
+  const el=$("currentWordText");if(!el)return;
+  cancelAnimationFrame(currentWordFitRaf);
+  currentWordFitRaf=requestAnimationFrame(()=>{
+    const word=String(el.textContent||"").trim(),longMode=online?.room?.settings?.gameMode==="long";
+    el.classList.toggle("long-mode-fit",longMode);
+    el.style.removeProperty("font-size");
+    el.style.removeProperty("letter-spacing");
+    if(!longMode||!word||word==="-")return;
+
+    const len=Array.from(word).length;
+    const base=parseFloat(getComputedStyle(el).fontSize)||88;
+    let size=Math.min(base, len<=5?base:len<=7?68:len<=9?56:len<=12?46:len<=16?36:30);
+    el.style.fontSize=`${size}px`;
+    el.style.letterSpacing=len>=13?"-1px":len>=9?"-1.5px":"-2.5px";
+
+    // 실제 렌더링 너비를 기준으로 줄여서 긴 단어도 한 줄 안에 전부 보이게 합니다.
+    const available=Math.max(80,el.clientWidth||el.parentElement?.clientWidth||0);
+    while(el.scrollWidth>available&&size>15){size-=1;el.style.fontSize=`${size}px`;}
+  });
+}
+function setupCurrentWordAutoFit(){
+  const el=$("currentWordText");if(!el)return;
+  new MutationObserver(fitCurrentWordDisplay).observe(el,{childList:true,subtree:true,characterData:true});
+  window.addEventListener("resize",fitCurrentWordDisplay,{passive:true});
+  fitCurrentWordDisplay();
 }
 async function fillDefinitionCell(button){
   const word=button?.dataset?.definitionWord,cell=button?.closest("td");if(!word||!cell)return;cell.innerHTML='<span class="muted">불러오는 중...</span>';
@@ -1586,6 +1630,7 @@ $("quitGameBtn").addEventListener("click",async()=>{if(online.role==="spectator"
 $("resultHomeBtn").addEventListener("click",()=>{});
 $("resultReplayBtn").addEventListener("click",()=>{});
 setupDefinitionObserver();
+setupCurrentWordAutoFit();
 initialize();
 </script>
 </body>
