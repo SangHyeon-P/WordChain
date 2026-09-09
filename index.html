@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>한국어 끝말잇기 v2.0</title>
+  <title>한국어 끝말잇기 v1.0</title>
   <meta name="color-scheme" content="dark light" />
   <style>
     :root {
@@ -1602,8 +1602,11 @@ async function runGameDictionarySearch(){
   $("gameDictResults").innerHTML=rows.map(w=>`<div class="game-dict-item"><b>${escapeHtml(w)}</b><div class="definition-cell">${definitionButtonHtml(w)}</div></div>`).join("");
 }
 function updateDbStatus(){
-  const m=state.dictionaryMeta||{};$("homeDbName").textContent=m.name||"공통 DB";$("homeWordCount").textContent=`${formatNumber(state.words.length)}개`;$("homeSource").textContent=m.source||"GitHub/Netlify 공통 DB";
-  $("dbStatusState").textContent="정상 · 게임 가능";$("dbStatusName").textContent=m.name||"공통 DB";$("dbStatusSize").textContent=m.size?`${(m.size/1024/1024).toFixed(1)} MB`:"외부 DB";$("dbStatusSchema").textContent=m.schema||"-";$("dbStatusDate").textContent=m.date||"-";$("dbStatusWords").textContent=`${formatNumber(state.words.length)}개`;$("dbStorageInfo").textContent=m.external?"GitHub/Netlify 공통 DB 사용 중":m.stored?"브라우저에 저장됨":"공통 DB 사용 중";if($("demoNotice"))$("demoNotice").style.display=m.external?"none":m.stored?"none":"block";
+  const m=state.dictionaryMeta||{}, name=m.name||"공통 DB", count=formatNumber(state.words.length);
+  if($("topDbDot")) $("topDbDot").className="dot good";
+  if($("topDbText")) $("topDbText").textContent=`${name} · ${count}단어`;
+  $("homeDbName").textContent=name;$("homeWordCount").textContent=`${count}개`;$("homeSource").textContent=m.source||"GitHub/Netlify 공통 DB";
+  $("dbStatusState").textContent="정상 · 게임 가능";$("dbStatusName").textContent=name;$("dbStatusSize").textContent=m.size?`${(m.size/1024/1024).toFixed(1)} MB`:"외부 DB";$("dbStatusSchema").textContent=m.schema||"-";$("dbStatusDate").textContent=m.date||"-";$("dbStatusWords").textContent=`${count}개`;$("dbStorageInfo").textContent=m.external?"GitHub/Netlify 공통 DB 사용 중":m.stored?"브라우저에 저장됨":"공통 DB 사용 중";if($("demoNotice"))$("demoNotice").style.display=m.external?"none":m.stored?"none":"block";
 }
 document.addEventListener("click",e=>{const b=e.target.closest?.("[data-definition-word]");if(b)fillDefinitionCell(b);});
 /* ================== END EXTERNAL DICTIONARY v2 ================== */
